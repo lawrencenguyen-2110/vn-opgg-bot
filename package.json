@@ -1,0 +1,130 @@
+{
+  "name": "vn-opgg-discord-bot",
+  "version": "1.0.0",
+  "description": "Discord bot for tracking League of Legends statistics from OP.GG for Vietnam region players",
+  "main": "src/bot.js",
+  "scripts": {
+    "start": "node src/bot.js",
+    "dev": "nodemon src/bot.js",
+    "test": "node test/test-runner.js",
+    "test:real": "node test/test-real-data.js",
+    "test:bot": "node test/test-bot-logic.js",
+    "test:puppeteer": "node test/test-puppeteer.js",
+    "lint": "eslint src/ test/",
+    "lint:fix": "eslint src/ test/ --fix",
+    "deploy:register": "node src/deploy-commands.js",
+    "pm2:start": "pm2 start ecosystem.config.js",
+    "pm2:stop": "pm2 stop vn-opgg-bot",
+    "pm2:restart": "pm2 restart vn-opgg-bot",
+    "pm2:logs": "pm2 logs vn-opgg-bot",
+    "pm2:delete": "pm2 delete vn-opgg-bot",
+    "docker:build": "docker build -t vn-opgg-bot .",
+    "docker:run": "docker run --env-file .env vn-opgg-bot",
+    "docker:compose": "docker-compose up -d",
+    "logs": "tail -f logs/combined.log",
+    "setup": "npm install && npm run deploy:register && echo 'Setup complete! Run npm run dev to start development'",
+    "clean": "rm -rf logs/*.log && rm -rf screenshots/",
+    "health": "node scripts/health-check.js"
+  },
+  "keywords": [
+    "discord",
+    "bot",
+    "league-of-legends",
+    "opgg",
+    "vietnam",
+    "gaming",
+    "statistics",
+    "esports"
+  ],
+  "author": {
+    "name": "Your Name",
+    "email": "your.email@example.com"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/vn-opgg-discord-bot.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/vn-opgg-discord-bot/issues"
+  },
+  "homepage": "https://github.com/yourusername/vn-opgg-discord-bot#readme",
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
+  },
+  "dependencies": {
+    "discord.js": "^14.14.1",
+    "puppeteer": "^21.5.2",
+    "dotenv": "^16.3.1",
+    "axios": "^1.6.2",
+    "cheerio": "^1.0.0-rc.12",
+    "node-cron": "^3.0.3",
+    "winston": "^3.11.0",
+    "express": "^4.18.2",
+    "helmet": "^7.1.0",
+    "cors": "^2.8.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2",
+    "eslint": "^8.55.0",
+    "eslint-config-standard": "^17.1.0",
+    "eslint-plugin-import": "^2.29.0",
+    "eslint-plugin-n": "^16.4.0",
+    "eslint-plugin-promise": "^6.1.1",
+    "jest": "^29.7.0",
+    "supertest": "^6.3.3",
+    "prettier": "^3.1.0"
+  },
+  "optionalDependencies": {
+    "pm2": "^5.3.0",
+    "@sentry/node": "^7.81.1",
+    "redis": "^4.6.11",
+    "pg": "^8.11.3"
+  },
+  "browserslist": [
+    "node >= 16"
+  ],
+  "nodemonConfig": {
+    "watch": [
+      "src/"
+    ],
+    "ext": "js,json",
+    "ignore": [
+      "logs/",
+      "screenshots/",
+      "node_modules/"
+    ],
+    "env": {
+      "NODE_ENV": "development"
+    }
+  },
+  "eslintConfig": {
+    "extends": [
+      "standard"
+    ],
+    "env": {
+      "node": true,
+      "es2022": true
+    },
+    "rules": {
+      "no-console": "off",
+      "prefer-const": "error",
+      "no-unused-vars": "warn"
+    }
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "collectCoverageFrom": [
+      "src/**/*.js",
+      "!src/bot.js"
+    ],
+    "testMatch": [
+      "**/test/**/*.test.js"
+    ]
+  },
+  "funding": {
+    "type": "individual",
+    "url": "https://ko-fi.com/yourusername"
+  }
+}
