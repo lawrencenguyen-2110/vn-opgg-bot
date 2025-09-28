@@ -249,7 +249,7 @@ async function testOPGGAccess() {
     
     try {
         // Test OP.GG main page access
-        await page.goto('https://op.gg', { waitUntil: 'networkidle2', timeout: 10000 });
+        await page.goto('https://op.gg', { waitUntil: 'networkidle2', timeout: 60000 });
         
         const title = await page.title();
         if (title.toLowerCase().includes('op.gg')) {
@@ -412,7 +412,7 @@ async function runRealDataTests() {
     // Test with different players
     const testPlayers = [
         { name: 'Richard Mille', tag: '666' },
-        { name: 'Faker', tag: 'KR1' }, // Might not exist in VN
+        { name: 'khaibeoisekai', tag: 'kbngu' }, // Might not exist in VN
         { name: 'Test Player', tag: '123' } // Definitely won't exist
     ];
 

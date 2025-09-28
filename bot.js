@@ -297,7 +297,14 @@ class VNOPGGBot {
             await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
 
             // Wait for content to load
-            await page.waitForTimeout(5000);
+            const result = await Promise.race([
+            page.waitForSelector('.summoner-name', { timeout: 12000 }).then(() => 'found'),
+            page.waitForSelector('.summoner-not-found', { timeout: 12000 }).then(() => 'not-found')
+            ]);
+
+            if (result === 'not-found') {
+            throw new Error('Summoner not found');
+            }
 
             // Enhanced profile data extraction for VN region
             const profileData = await page.evaluate(() => {
@@ -392,7 +399,14 @@ class VNOPGGBot {
             const url = `https://op.gg/lol/summoners/vn/${encodeURIComponent(summonerName)}`;
             await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
 
-            await page.waitForTimeout(5000);
+            const result = await Promise.race([
+            page.waitForSelector('.summoner-name', { timeout: 12000 }).then(() => 'found'),
+            page.waitForSelector('.summoner-not-found', { timeout: 12000 }).then(() => 'not-found')
+            ]);
+
+            if (result === 'not-found') {
+            throw new Error('Summoner not found');
+            }
 
             const matchData = await page.evaluate(() => {
                 const data = { matches: [] };

@@ -37,53 +37,51 @@
     "esports"
   ],
   "author": {
-    "name": "Your Name",
-    "email": "your.email@example.com"
+    "name": "lawrencenguyen",
+    "email": "vanlamnguyen2110@gmail.com"
   },
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/vn-opgg-discord-bot.git"
+    "url": "https://github.com/lawrencenguyen-2110/vn-opgg-discord-bot.git"
   },
   "bugs": {
-    "url": "https://github.com/yourusername/vn-opgg-discord-bot/issues"
+    "url": "https://github.com/lawrencenguyen-2110/vn-opgg-discord-bot/issues"
   },
-  "homepage": "https://github.com/yourusername/vn-opgg-discord-bot#readme",
+  "homepage": "https://github.com/lawrencenguyen-2110/vn-opgg-discord-bot#readme",
   "engines": {
-    "node": ">=16.0.0",
-    "npm": ">=8.0.0"
+    "node": ">=18.18.0"
   },
   "dependencies": {
-    "discord.js": "^14.14.1",
-    "puppeteer": "^21.5.2",
-    "dotenv": "^16.3.1",
-    "axios": "^1.6.2",
+    "axios": "^1.12.2",
     "cheerio": "^1.0.0-rc.12",
+    "cors": "^2.8.5",
+    "discord.js": "^14.15.3",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "helmet": "^8.1.0",
     "node-cron": "^3.0.3",
-    "winston": "^3.11.0",
-    "express": "^4.18.2",
-    "helmet": "^7.1.0",
-    "cors": "^2.8.5"
+    "puppeteer": "^24.22.3",
+    "winston": "^3.13.1"
   },
   "devDependencies": {
-    "nodemon": "^3.0.2",
-    "eslint": "^8.55.0",
-    "eslint-config-standard": "^17.1.0",
-    "eslint-plugin-import": "^2.29.0",
-    "eslint-plugin-n": "^16.4.0",
-    "eslint-plugin-promise": "^6.1.1",
+    "eslint": "^9.36.0",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-n": "^17.23.1",
+    "eslint-plugin-promise": "^7.2.1",
     "jest": "^29.7.0",
-    "supertest": "^6.3.3",
-    "prettier": "^3.1.0"
+    "nodemon": "^3.1.4",
+    "prettier": "^3.6.2",
+    "supertest": "^7.0.0"
   },
   "optionalDependencies": {
-    "pm2": "^5.3.0",
-    "@sentry/node": "^7.81.1",
-    "redis": "^4.6.11",
-    "pg": "^8.11.3"
+    "@sentry/node": "^8.17.0",
+    "pg": "^8.12.0",
+    "pm2": "^5.4.2",
+    "redis": "^4.6.15"
   },
   "browserslist": [
-    "node >= 16"
+    "node >= 18"
   ],
   "nodemonConfig": {
     "watch": [
@@ -122,9 +120,5 @@
     "testMatch": [
       "**/test/**/*.test.js"
     ]
-  },
-  "funding": {
-    "type": "individual",
-    "url": "https://ko-fi.com/yourusername"
   }
 }

@@ -39,7 +39,15 @@ class ManualTester {
             });
 
             // Wait for content to load
-            await page.waitForTimeout(5000);
+            const result = await Promise.race([
+                page.waitForSelector('.summoner-name', { timeout: 12000 }).then(() => 'found'),
+                page.waitForSelector('.summoner-not-found', { timeout: 12000 }).then(() => 'not-found')
+            ]);
+
+            if (result === 'not-found') {
+                throw new Error('Summoner not found');
+            }
+
 
             // Check if profile exists
             const profileCheck = await this.checkProfileExists(page);
