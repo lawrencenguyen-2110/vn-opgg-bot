@@ -42,6 +42,110 @@ async function testRealPlayerData(summonerName = 'Richard Mille', tagline = '666
         
         // Wait for page to load and check for blocking
         await new Promise(resolve => setTimeout(resolve, 3000));
+
+        // Make API call to get PUUID from response
+        let apiPuuid = null;
+        try {
+            const response = await page.evaluate(async (url) => {
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'rsc': '1',
+                        'sec-fetch-mode': 'cors'
+                    }
+                });
+                return {
+                    text: await response.text(),
+                    status: response.status,
+                    headers: Object.fromEntries(response.headers.entries())
+                };
+            }, url);
+
+            // Extract PUUID from API response (RSC format)
+            let jsonPuuids = [];
+            
+            // Try to extract PUUIDs from JSON-like structures in RSC response
+            const jsonPuuidPattern = /"puuid":"([^"]+)"/gi;
+            let match;
+            while ((match = jsonPuuidPattern.exec(response.text)) !== null) {
+                jsonPuuids.push(match[1]);
+            }
+            
+            // Also try the standard UUID pattern as fallback
+            const puuidPattern = /[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/gi;
+            const standardPuuids = response.text.match(puuidPattern) || [];
+            
+            // Combine and deduplicate PUUIDs
+            const allPuuids = [...new Set([...jsonPuuids, ...standardPuuids])];
+            
+            if (allPuuids.length > 0) {
+                apiPuuid = allPuuids[0]; // Get first PUUID
+                console.log(`  ✅ API PUUID extracted: ${apiPuuid}`);
+                if (allPuuids.length > 1) {
+                    console.log(`  📋 Found ${allPuuids.length} total PUUIDs in API response`);
+                }
+            } else {
+                console.log('  ⚠️ No PUUID found in API response');
+                console.log(`  📊 Response status: ${response.status}`);
+                console.log(`  📊 Response length: ${response.text.length} characters`);
+            }
+        } catch (error) {
+            console.log(`  ❌ API call failed: ${error.message}`);
+        }
+
+        // Get matches data using the extracted PUUID
+        let matchesData = null;
+        if (apiPuuid) {
+            try {
+                console.log('  🎮 Fetching matches data...');
+                const matchesResponse = await page.evaluate(async (url, puuid) => {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: {
+                            'next-action': '409a2b9ca50d15e50a4dace93552e3a40113dc2753',
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify([{
+                            "locale": "en",
+                            "region": "vn",
+                            "puuid": puuid,
+                            "gameType": "TOTAL",
+                            "endedAt": "",
+                            "champion": ""
+                        }])
+                    });
+                    return {
+                        text: await response.text(),
+                        status: response.status,
+                        headers: Object.fromEntries(response.headers.entries())
+                    };
+                }, url, apiPuuid);
+
+                if (matchesResponse.status === 200) {
+                    matchesData = matchesResponse.text;
+                    console.log(`  ✅ Matches data fetched successfully`);
+                    console.log(`  📊 Matches response length: ${matchesData.length} characters`);
+                    
+                    // Save matches data to file
+                    const fs = require('fs');
+                    const path = require('path');
+                    const exportsDir = path.join(__dirname, '..', 'exports');
+                    if (!fs.existsSync(exportsDir)) {
+                        fs.mkdirSync(exportsDir, { recursive: true });
+                    }
+                    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                    const matchesFile = path.join(exportsDir, `matches-${summonerName}-${tagline}-${timestamp}.json`);
+                    fs.writeFileSync(matchesFile, matchesData, 'utf8');
+                    console.log(`  📄 Matches data saved to: ${matchesFile}`);
+                } else {
+                    console.log(`  ⚠️ Matches API call failed with status: ${matchesResponse.status}`);
+                }
+            } catch (error) {
+                console.log(`  ❌ Matches API call failed: ${error.message}`);
+            }
+        } else {
+            console.log('  ⚠️ No PUUID available for matches API call');
+        }
         
         const pageContent = await page.content();
         if (pageContent.includes('ERROR: The request could not be satisfied') || 
@@ -86,7 +190,7 @@ async function testRealPlayerData(summonerName = 'Richard Mille', tagline = '666
         }
         
         // Extract real data with improved selectors
-        const realData = await page.evaluate(() => {
+        const realData = await page.evaluate((apiPuuid, matchesData) => {
             const data = { found: {} };
 
             // Test various selectors for different data points
@@ -167,7 +271,10 @@ async function testRealPlayerData(summonerName = 'Richard Mille', tagline = '666
             data.matchCount = matchCount;
             data.pageTitle = document.title;
             data.bodyLength = document.body.textContent.length;
+            data.bodyTextContent = document.body.textContent;
             data.url = window.location.href;
+            data.apiPuuid = apiPuuid; // API PUUID from outer scope
+            data.matchesData = matchesData; // Matches data from API call
             
             // Check for common page indicators
             data.hasProfileData = document.body.textContent.includes('League of Legends') ||
@@ -176,13 +283,73 @@ async function testRealPlayerData(summonerName = 'Richard Mille', tagline = '666
                                  document.body.textContent.includes('Level');
 
             return data;
-        });
+        }, apiPuuid, matchesData);
+
+        // Parse matches data if available (RSC format)
+        let matchesInfo = null;
+        if (realData.matchesData) {
+            try {
+                // Parse RSC format: find line starting with "1:{" and extract the data array
+                const lines = realData.matchesData.split('\n');
+                let matchesArray = null;
+                
+                for (const line of lines) {
+                    if (line.startsWith('1:{"data":[')) {
+                        // Extract the JSON part after "1:"
+                        const jsonPart = line.substring(2); // Remove "1:" prefix
+                        const rscData = JSON.parse(jsonPart);
+                        if (rscData.data && Array.isArray(rscData.data)) {
+                            matchesArray = rscData.data;
+                            break;
+                        }
+                    }
+                }
+                
+                if (matchesArray) {
+                    matchesInfo = {
+                        hasData: true,
+                        rawLength: realData.matchesData.length,
+                        parsed: matchesArray,
+                        matchCount: matchesArray.length
+                    };
+                } else {
+                    // Fallback: try to parse as regular JSON
+                    const matchesJson = JSON.parse(realData.matchesData);
+                    matchesInfo = {
+                        hasData: true,
+                        rawLength: realData.matchesData.length,
+                        parsed: matchesJson
+                    };
+                }
+            } catch (error) {
+                matchesInfo = {
+                    hasData: false,
+                    error: 'Failed to parse RSC/JSON format',
+                    rawLength: realData.matchesData.length
+                };
+            }
+        }
 
         console.log('  📊 Real Data Extraction Results:');
         console.log(`    Page Title: ${realData.pageTitle}`);
-        console.log(`    Content Length: ${realData.bodyLength} characters`);
-        console.log(`    Match Elements Found: ${realData.matchCount}`);
-        console.log(`    Has Profile Data: ${realData.hasProfileData ? 'Yes' : 'No'}`);
+        console.log(`    PUUID: ${realData.apiPuuid || 'Not found'}`);
+        
+        if (matchesInfo) {
+            if (matchesInfo.hasData) {
+                console.log(`    🎮 Matches Data: ✅ Successfully fetched (${matchesInfo.rawLength} chars)`);
+                if (matchesInfo.matchCount) {
+                    console.log(`    📋 Matches Count: ${matchesInfo.matchCount}`);
+                } else if (matchesInfo.parsed && Array.isArray(matchesInfo.parsed)) {
+                    console.log(`    📋 Matches Count: ${matchesInfo.parsed.length}`);
+                } else if (matchesInfo.parsed && matchesInfo.parsed.data) {
+                    console.log(`    📋 Matches Count: ${matchesInfo.parsed.data.length || 'Unknown'}`);
+                }
+            } else {
+                console.log(`    🎮 Matches Data: ❌ ${matchesInfo.error} (${matchesInfo.rawLength} chars)`);
+            }
+        } else {
+            console.log(`    🎮 Matches Data: ⚠️ Not available`);
+        }
         
         if (Object.keys(realData.found).length > 0) {
             console.log('    ✅ Successfully extracted:');
