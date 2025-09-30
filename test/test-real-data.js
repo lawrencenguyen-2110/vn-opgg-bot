@@ -87,7 +87,6 @@ async function testRealPlayerData(summonerName = 'Richard Mille', tagline = '666
             } else {
                 console.log('  ⚠️ No PUUID found in API response');
                 console.log(`  📊 Response status: ${response.status}`);
-                console.log(`  📊 Response length: ${response.text.length} characters`);
             }
         } catch (error) {
             console.log(`  ❌ API call failed: ${error.message}`);
@@ -97,7 +96,6 @@ async function testRealPlayerData(summonerName = 'Richard Mille', tagline = '666
         let matchesData = null;
         if (apiPuuid) {
             try {
-                console.log('  🎮 Fetching matches data...');
                 const matchesResponse = await page.evaluate(async (url, puuid) => {
                     const response = await fetch(url, {
                         method: 'POST',
@@ -123,20 +121,7 @@ async function testRealPlayerData(summonerName = 'Richard Mille', tagline = '666
 
                 if (matchesResponse.status === 200) {
                     matchesData = matchesResponse.text;
-                    console.log(`  ✅ Matches data fetched successfully`);
                     console.log(`  📊 Matches response length: ${matchesData.length} characters`);
-                    
-                    // Save matches data to file
-                    const fs = require('fs');
-                    const path = require('path');
-                    const exportsDir = path.join(__dirname, '..', 'exports');
-                    if (!fs.existsSync(exportsDir)) {
-                        fs.mkdirSync(exportsDir, { recursive: true });
-                    }
-                    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-                    const matchesFile = path.join(exportsDir, `matches-${summonerName}-${tagline}-${timestamp}.json`);
-                    fs.writeFileSync(matchesFile, matchesData, 'utf8');
-                    console.log(`  📄 Matches data saved to: ${matchesFile}`);
                 } else {
                     console.log(`  ⚠️ Matches API call failed with status: ${matchesResponse.status}`);
                 }
