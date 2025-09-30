@@ -6,50 +6,131 @@ async function testRealPlayerData(summonerName = 'Richard Mille', tagline = '666
     
     const browser = await puppeteer.launch({
         headless: process.env.BROWSER_HEADLESS !== 'false',
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
+        args: [
+            '--no-sandbox', 
+            '--disable-setuid-sandbox',
+            '--disable-blink-features=AutomationControlled',
+            '--disable-features=VizDisplayCompositor'
+        ]
     });
 
     const page = await browser.newPage();
     
     try {
+        // Set realistic user agent and headers to avoid detection
+        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+        await page.setExtraHTTPHeaders({
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'DNT': '1',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+        });
+
+        // Remove webdriver property to avoid detection
+        await page.evaluateOnNewDocument(() => {
+            Object.defineProperty(navigator, 'webdriver', {
+                get: () => undefined,
+            });
+        });
+
         const url = `https://op.gg/lol/summoners/vn/${encodeURIComponent(summonerName)}-${tagline}`;
         console.log(`  🌐 Navigating to: ${url}`);
         
         await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
-        const result = await Promise.race([
-            page.waitForSelector('.summoner-name', { timeout: 12000 }).then(() => 'found'),
-            page.waitForSelector('.summoner-not-found', { timeout: 12000 }).then(() => 'not-found')
-        ]);
-
-        if (result === 'not-found') {
-            throw new Error('Summoner not found');
-        }
- // Wait for JS to load
         
-        // Check if profile exists
-        const profileExists = await page.evaluate(() => {
-            return !document.body.textContent.includes('Summoner Not Found') &&
-                   !document.body.textContent.includes('404') &&
-                   document.title.includes('Summoner Stats');
-        });
-
-        if (!profileExists) {
-            console.log(`  ⚠️ Profile ${summonerName}#${tagline} not found or page failed to load`);
+        // Wait for page to load and check for blocking
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        
+        const pageContent = await page.content();
+        if (pageContent.includes('ERROR: The request could not be satisfied') || 
+            pageContent.includes('Cloudflare') ||
+            pageContent.includes('Access denied')) {
+            console.log('  ⚠️ Page blocked by Cloudflare - skipping data extraction');
             return false;
         }
 
-        // Extract real data
+        // Try multiple selectors for summoner name
+        const summonerSelectors = [
+            '.summoner-name',
+            '[data-testid="summoner-name"]',
+            '.profile-summary__name',
+            '.summoner-summary__name',
+            'h1',
+            '.title'
+        ];
+
+        let summonerFound = false;
+        for (const selector of summonerSelectors) {
+            try {
+                await page.waitForSelector(selector, { timeout: 2000 });
+                summonerFound = true;
+                break;
+            } catch (e) {
+                // Continue to next selector
+            }
+        }
+
+        if (!summonerFound) {
+            console.log('  ⚠️ No summoner name selector found - checking page content');
+            const title = await page.title();
+            console.log(`  📄 Page title: "${title}"`);
+            
+            // Check if it's a 404 or not found page
+            if (title.includes('404') || title.includes('Not Found') || 
+                pageContent.includes('Summoner Not Found')) {
+                console.log('  ❌ Summoner not found');
+                return false;
+            }
+        }
+        
+        // Extract real data with improved selectors
         const realData = await page.evaluate(() => {
             const data = { found: {} };
 
-            // Test various selectors
+            // Test various selectors for different data points
             const selectors = {
-                summonerName: ['.summoner-name', '[data-testid="summoner-name"]'],
-                level: ['.level', '.summoner-level'],
-                rank: ['.tier', '.rank'],
-                winRate: ['.win-rate', '.winrate']
+                summonerName: [
+                    '.summoner-name', 
+                    '[data-testid="summoner-name"]',
+                    '.profile-summary__name',
+                    '.summoner-summary__name',
+                    'h1',
+                    '.title',
+                    '.summoner-header__name'
+                ],
+                level: [
+                    '.level', 
+                    '.summoner-level',
+                    '.profile-summary__level',
+                    '.summoner-header__level',
+                    '[data-testid="summoner-level"]'
+                ],
+                rank: [
+                    '.tier', 
+                    '.rank',
+                    '.profile-summary__tier',
+                    '.summoner-header__tier',
+                    '.tier-rank',
+                    '[data-testid="tier-rank"]'
+                ],
+                winRate: [
+                    '.win-rate', 
+                    '.winrate',
+                    '.profile-summary__winrate',
+                    '.summoner-header__winrate',
+                    '[data-testid="winrate"]'
+                ],
+                lp: [
+                    '.lp',
+                    '.profile-summary__lp',
+                    '.summoner-header__lp',
+                    '[data-testid="lp"]'
+                ]
             };
 
+            // Try to extract data using multiple selectors
             Object.entries(selectors).forEach(([field, selectorList]) => {
                 for (const selector of selectorList) {
                     const element = document.querySelector(selector);
@@ -63,8 +144,15 @@ async function testRealPlayerData(summonerName = 'Richard Mille', tagline = '666
                 }
             });
 
-            // Check for match elements
-            const matchSelectors = ['.game-item', '.match-item', '.game-history-item'];
+            // Check for match elements with more selectors
+            const matchSelectors = [
+                '.game-item', 
+                '.match-item', 
+                '.game-history-item',
+                '.match-history-item',
+                '.game-list-item',
+                '[data-testid="match-item"]'
+            ];
             let matchCount = 0;
             
             for (const selector of matchSelectors) {
@@ -75,9 +163,17 @@ async function testRealPlayerData(summonerName = 'Richard Mille', tagline = '666
                 }
             }
 
+            // Get page metadata
             data.matchCount = matchCount;
             data.pageTitle = document.title;
             data.bodyLength = document.body.textContent.length;
+            data.url = window.location.href;
+            
+            // Check for common page indicators
+            data.hasProfileData = document.body.textContent.includes('League of Legends') ||
+                                 document.body.textContent.includes('Summoner') ||
+                                 document.body.textContent.includes('Rank') ||
+                                 document.body.textContent.includes('Level');
 
             return data;
         });
@@ -86,6 +182,7 @@ async function testRealPlayerData(summonerName = 'Richard Mille', tagline = '666
         console.log(`    Page Title: ${realData.pageTitle}`);
         console.log(`    Content Length: ${realData.bodyLength} characters`);
         console.log(`    Match Elements Found: ${realData.matchCount}`);
+        console.log(`    Has Profile Data: ${realData.hasProfileData ? 'Yes' : 'No'}`);
         
         if (Object.keys(realData.found).length > 0) {
             console.log('    ✅ Successfully extracted:');
@@ -94,6 +191,11 @@ async function testRealPlayerData(summonerName = 'Richard Mille', tagline = '666
             });
         } else {
             console.log('    ⚠️ No profile data extracted - may need selector updates');
+            if (realData.hasProfileData) {
+                console.log('    💡 Page appears to have profile data but selectors need updating');
+            } else {
+                console.log('    💡 Page may not contain profile data or is blocked');
+            }
         }
 
         // Save screenshot if enabled
